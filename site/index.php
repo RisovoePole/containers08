@@ -10,7 +10,7 @@ $page = new Page(__DIR__ . '/templates/index.tpl');
 // проверяет установленно ли значение параметра page в url запросе
 $pageId = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
-$data = $db->Read("Page1", $pageId);
+$data = $db->Read("page", $pageId);
 
 if (!$data) {
     $data = [
