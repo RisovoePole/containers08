@@ -2,6 +2,6 @@
 
 $config = [
     "db" => [
-        "path" => __DIR__ . "/db.sqlite"
+        "path" => "/var/www/db/db.sqlite"
     ]
 ];
