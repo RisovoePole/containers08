@@ -11,6 +11,7 @@ class Page
 
     public function Render($data)
     {
+        // Загружаем HTML-шаблон и подставляем значения вида {{key}}.
         $content = file_get_contents($this->template);
 
         foreach ($data as $key => $value) {

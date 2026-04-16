@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../modules/database.php';
 require_once __DIR__ . '/../modules/page.php';
 
+// Общий раннер, который собирает и запускает тесты.
 $testFramework = new TestFramework();
 
 /**
@@ -14,6 +15,7 @@ function testDbConnection() {
     global $config;
 
     try {
+        // Проверяем, что объект БД успешно создается с текущим конфигом.
         $db = new Database($config["db"]["path"]);
         return assertExpression($db instanceof Database, "DB connection OK", "DB connection FAIL");
     } catch (Exception $e) {
@@ -30,6 +32,7 @@ function testDbCount() {
 
     try {
         $db = new Database($config["db"]["path"]);
+        // Если таблица доступна, запрос COUNT должен выполниться без ошибки.
         $count = $db->Count("page");
 
         return assertExpression($count >= 0, "Count OK ($count)", "Count FAIL");
@@ -48,6 +51,7 @@ function testDbCreate() {
     try {
         $db = new Database($config["db"]["path"]);
 
+        // Проверяем вставку записи в таблицу page.
         $id = $db->Create("page", [
             "title" => "Test Page",
             "content" => "Hello world"
@@ -69,6 +73,7 @@ function testDbRead() {
     try {
         $db = new Database($config["db"]["path"]);
 
+        // Создаем запись и сразу читаем ее обратно по id.
         $id = $db->Create("page", [
             "title" => "Read Test",
             "content" => "Read content"
@@ -76,6 +81,7 @@ function testDbRead() {
 
         $row = $db->Read("page", $id);
 
+        // Валидация: запись есть и нужное поле совпадает.
         $ok = $row && isset($row["title"]) && $row["title"] === "Read Test";
 
         return assertExpression($ok, "Read OK", "Read FAIL");

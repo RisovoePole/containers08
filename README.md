@@ -21,6 +21,7 @@
 ## Выполнение
 
 Создаю структуру файлов:
+
 ``` bash
 .
 ├── Dockerfile
@@ -53,6 +54,7 @@ class Database
 
     public function __construct($path)
     {
+        // Подключаемся к SQLite-файлу и включаем исключения при ошибках SQL.
         $this->pdo = new PDO("sqlite:" . $path);
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
@@ -70,6 +72,7 @@ class Database
 
     public function Create($table, $data)
     {
+        // Формируем INSERT динамически на основе переданных полей.
         $columns = implode(", ", array_keys($data));
         $placeholders = ":" . implode(", :", array_keys($data));
 
@@ -90,6 +93,7 @@ class Database
 
     public function Update($table, $id, $data)
     {
+        // Преобразуем массив в "column = :column" для подготовленного UPDATE.
         $set = implode(", ", array_map(fn($k) => "$k = :$k", array_keys($data)));
 
         $sql = "UPDATE $table SET $set WHERE id = :id";
@@ -107,6 +111,7 @@ class Database
 
     public function Count($table)
     {
+        // Быстрый подсчет строк таблицы.
         $stmt = $this->pdo->query("SELECT COUNT(*) as cnt FROM $table");
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return (int)$row['cnt'];
@@ -130,6 +135,7 @@ class Page
 
     public function Render($data)
     {
+        // Загружаем HTML-шаблон и подставляем значения вида {{key}}.
         $content = file_get_contents($this->template);
 
         foreach ($data as $key => $value) {
@@ -170,15 +176,18 @@ require_once __DIR__ . '/modules/database.php';
 require_once __DIR__ . '/modules/page.php';
 require_once __DIR__ . '/config.php';
 
+// Инициализация доступа к БД и шаблонизатору страницы.
 $db = new Database($config["db"]["path"]);
 $page = new Page(__DIR__ . '/templates/index.tpl');
 
 // проверяет установленно ли значение параметра page в url запросе
 $pageId = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
-$data = $db->Read("Page1", $pageId);
+// Читаем запись по id из таблицы page.
+$data = $db->Read("page", $pageId);
 
 if (!$data) {
+    // Если записи нет, показываем безопасный fallback-контент.
     $data = [
         "title" => "Not found",
         "content" => "Page does not exist"
@@ -191,12 +200,14 @@ echo $page->Render($data);
 Создаём маленькую табличку с несколькими записями:
 
 ``` sql
+-- Таблица страниц, которые отображаются в приложении.
 CREATE TABLE page (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT,
     content TEXT
 );
 
+-- Стартовые данные для проверки чтения и тестов.
 INSERT INTO page (title, content) VALUES ('Page 1', 'Content 1');
 INSERT INTO page (title, content) VALUES ('Page 2', 'Content 2');
 INSERT INTO page (title, content) VALUES ('Page 3', 'Content 3');
@@ -208,6 +219,7 @@ INSERT INTO page (title, content) VALUES ('Page 3', 'Content 3');
 <?php
 
 function message($type, $message) {
+    // Единый формат логов для удобного чтения вывода в CI.
     $time = date('Y-m-d H:i:s');
     echo "{$time} [{$type}] {$message}" . PHP_EOL;
 }
@@ -238,6 +250,7 @@ class TestFramework {
     }
 
     public function run() {
+        // Последовательно запускаем зарегистрированные тесты.
         foreach ($this->tests as $name => $test) {
             info("Running test {$name}");
             if ($test()) {
@@ -263,6 +276,7 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../modules/database.php';
 require_once __DIR__ . '/../modules/page.php';
 
+// Общий раннер, который собирает и запускает тесты.
 $testFramework = new TestFramework();
 
 /**
@@ -272,6 +286,7 @@ function testDbConnection() {
     global $config;
 
     try {
+        // Проверяем, что объект БД успешно создается с текущим конфигом.
         $db = new Database($config["db"]["path"]);
         return assertExpression($db instanceof Database, "DB connection OK", "DB connection FAIL");
     } catch (Exception $e) {
@@ -288,6 +303,7 @@ function testDbCount() {
 
     try {
         $db = new Database($config["db"]["path"]);
+        // Если таблица доступна, запрос COUNT должен выполниться без ошибки.
         $count = $db->Count("page");
 
         return assertExpression($count >= 0, "Count OK ($count)", "Count FAIL");
@@ -306,6 +322,7 @@ function testDbCreate() {
     try {
         $db = new Database($config["db"]["path"]);
 
+        // Проверяем вставку записи в таблицу page.
         $id = $db->Create("page", [
             "title" => "Test Page",
             "content" => "Hello world"
@@ -327,6 +344,7 @@ function testDbRead() {
     try {
         $db = new Database($config["db"]["path"]);
 
+        // Создаем запись и сразу читаем ее обратно по id.
         $id = $db->Create("page", [
             "title" => "Read Test",
             "content" => "Read content"
@@ -334,6 +352,7 @@ function testDbRead() {
 
         $row = $db->Read("page", $id);
 
+        // Валидация: запись есть и нужное поле совпадает.
         $ok = $row && isset($row["title"]) && $row["title"] === "Read Test";
 
         return assertExpression($ok, "Read OK", "Read FAIL");
@@ -364,14 +383,17 @@ echo PHP_EOL . "RESULT: " . $testFramework->getResult() . PHP_EOL;
 ``` Dockerfile
 FROM php:7.4-fpm as base
 
+# Устанавливаем sqlite-клиент и расширение PDO для работы приложения с SQLite.
 RUN apt-get update && \
     apt-get install -y sqlite3 libsqlite3-dev && \
     docker-php-ext-install pdo_sqlite
 
+# Отдельный volume для персистентной базы данных.
 VOLUME ["/var/www/db"]
 
 COPY sql/schema.sql /var/www/db/schema.sql
 
+# Инициализируем БД из schema.sql на этапе сборки образа.
 RUN echo "prepare database" && \
     cat /var/www/db/schema.sql | sqlite3 /var/www/db/db.sqlite && \
     chmod 777 /var/www/db/db.sqlite && \
@@ -396,16 +418,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+                # Забираем исходники репозитория в раннер.
         uses: actions/checkout@v4
       - name: Build the Docker image
+                # Собираем образ приложения с подготовленной SQLite-схемой.
         run: docker build -t containers08 .
       - name: Create `container`
+                # Подключаем volume с базой по пути /var/www/db.
         run: docker create --name container --volume database:/var/www/db containers08
       - name: Copy tests to the container
         run: docker cp ./tests container:/var/www/html
       - name: Up the container
         run: docker start container
       - name: Run tests
+                # Запускаем кастомный php-раннер тестов внутри контейнера.
         run: docker exec container php /var/www/html/tests/tests.php
       - name: Stop the container
         run: docker stop container
@@ -442,5 +468,42 @@ jobs:
 - случайно прописал не то название таблицы;
 - указал не правильный путь в конфиге.
 
-После ещё одной попытки, понял, что _DIR_ в конфиге указывал на папку, в которой лежал (`/var/www/html`). Но не в этой папке лежит бд, а в `/var/www/db/`.
+После ещё одной попытки, понял, что __DIR__ в конфиге указывал на папку, в которой лежал (`/var/www/html`). Но не в этой папке лежит бд, а в `/var/www/db/`.
 
+Теперь всё заработало:
+
+![Рабочие тесты](./images/proof_working_tests.png)
+
+## Ответы на вопросы
+
+1. Что такое непрерывная интеграция?
+
+    Непрерывная интеграция, это такой способ разработки проекта, где разработчики часто выполняют слияние с рабочим приложением новый код, а проверка работоспособности приложения после слияния выполняется автоматически.
+
+2. Для чего нужны юнит-тесты? Как часто их нужно запускать?
+
+    Юнит-тесты необходимы для проверки логики приложения, а так же для фиксирования правильного способа работы частей приложения (классы, модули и т.д.). Их можно запускать как локально (обычно юнит тесты не требовательны к ресурсам). Так же они могут запускаться автоматически при правильной настройки CI.
+
+3. Что нужно изменить в файле .github/workflows/main.yml для того, чтобы тесты запускались при каждом создании запроса на слияние (Pull Request)?
+
+    Нужно заменить `pull` на `pull_request`:
+
+    ``` yml
+    on:
+      pull_request:
+        branches:
+          - main
+    ```
+
+4. Что нужно добавить в файл .github/workflows/main.yml для того, чтобы удалять созданные образы после выполнения тестов?
+
+    В конец нужно добавить:
+
+    ``` yml
+    - name: Remove docker image
+      run: docker image rm containers08
+    ```
+
+## Вывод
+
+Научился базово использовать github Actions для CI.

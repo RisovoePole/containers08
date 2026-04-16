@@ -6,6 +6,7 @@ class Database
 
     public function __construct($path)
     {
+        // Подключаемся к SQLite-файлу и включаем исключения при ошибках SQL.
         $this->pdo = new PDO("sqlite:" . $path);
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
@@ -23,6 +24,7 @@ class Database
 
     public function Create($table, $data)
     {
+        // Формируем INSERT динамически на основе переданных полей.
         $columns = implode(", ", array_keys($data));
         $placeholders = ":" . implode(", :", array_keys($data));
 
@@ -43,6 +45,7 @@ class Database
 
     public function Update($table, $id, $data)
     {
+        // Преобразуем массив в "column = :column" для подготовленного UPDATE.
         $set = implode(", ", array_map(fn($k) => "$k = :$k", array_keys($data)));
 
         $sql = "UPDATE $table SET $set WHERE id = :id";
@@ -60,6 +63,7 @@ class Database
 
     public function Count($table)
     {
+        // Быстрый подсчет строк таблицы.
         $stmt = $this->pdo->query("SELECT COUNT(*) as cnt FROM $table");
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return (int)$row['cnt'];
